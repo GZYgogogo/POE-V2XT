@@ -1,0 +1,25 @@
+{
+    "constant":{
+        "alpha" : 150.0,
+        "beta"  : 5.0,
+        "gamma" : 90.0,
+        "delta" : 40.0,
+        "fai"   : 100.0,
+        "fee"   :1.0,
+        "Kappa" :2.0,
+        "Theta" :10.0,
+        "Vs"    : 1.0,
+        "Vv"    :2.0,
+        "Tau"   :10,
+        "ExpectedTime"  :0.2
+    },
+    "HardWare":{
+        "InitCredit"   : 42.55,
+        "Wcpu" : 1.0,
+        "Wmem" : 1.0,
+        "Whard" : 1.0 ,
+        "Bmcpu" : 1.0,
+        "Bmmem" : 1.0,
+        "Bmhard" : 1.0
+    }
+}
