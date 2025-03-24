@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type PBFTNode struct {
 	View     *View  // 当前视图编号
 	Sequence int64  // 当前序列号
 	// 增加写锁
+	lock          sync.RWMutex
 	CommittedMsgs []*RequestMessage
 	CurrentState  *State
 	// MsgBuffer    *MsgBuffer
@@ -69,6 +71,7 @@ func (node *PBFTNode) GetReq(reqMsg *RequestMessage) (*PrePrepareMessage, error)
 	}
 
 	// Start the consensus process.
+	// node.lock.Lock()
 	prePrepareMsg, err := node.CurrentState.StartConsensus(reqMsg)
 	if err != nil {
 		return nil, err

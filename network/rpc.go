@@ -131,15 +131,6 @@ func DefaultRPCDecodeFunc(rpc RPC) (*DecodedMessage, error) {
 			From: rpc.From,
 			Data: blocks,
 		}, nil
-	// case MessageTypeRequest:
-	// 	requestMessage := new(RequestMessage)
-	// 	if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(requestMessage); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return &DecodedMessage{
-	// 		From: rpc.From,
-	// 		Data: requestMessage,
-	// 	}, nil
 	case MessageTypeReply:
 		replyMessage := new(ReplyMessage)
 		if err := gob.NewDecoder(bytes.NewReader(msg.Data)).Decode(replyMessage); err != nil {

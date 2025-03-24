@@ -184,7 +184,6 @@ func (state *State) verifyMsg(viewID int64, sequenceID int64, digestGot string) 
 	if state.ViewID != viewID {
 		return false
 	}
-
 	// Check if the Primary sent fault sequence number. => Faulty primary.
 	// TODO: adopt upper/lower bound check.
 	if state.LastSequenceID != -1 {

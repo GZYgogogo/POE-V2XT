@@ -18,7 +18,16 @@ import (
 	"github.com/go-kit/log"
 )
 
-var defaultBlockTime = time.Millisecond * 1000
+var defaultBlockTime = time.Millisecond * 800
+
+// var defaultBlockTime = time.Second * 1
+
+// 信誉三元组
+type TrustOpinion struct {
+	Belief      float64 // 信任度 b
+	Disbelief   float64 // 不信任度 d
+	Uncertainty float64 // 不确定度 u
+}
 
 type ServerOpts struct {
 	ID            string
@@ -29,6 +38,8 @@ type ServerOpts struct {
 	Transports    []Transport
 	PrivateKey    *crypto.PrivateKey
 	blockTime     time.Duration
+	Reputation    float64 // 信誉值
+	Trust         TrustOpinion
 }
 
 type Server struct {
@@ -38,6 +49,7 @@ type Server struct {
 	blockchain  *core.Blockchain
 	isVaildator bool //是验证器节点还是普通节点
 	rpcCh       chan RPC
+	txChan      chan *core.Transaction
 	quitCh      chan struct{} //退出信号
 
 	PBFTNode *PBFTNode
@@ -65,6 +77,7 @@ func NewServer(opts ServerOpts) (*Server, error) {
 		blockTime:   opts.blockTime,
 		memPool:     NewTxPool(100),
 		rpcCh:       make(chan RPC), //无缓冲
+		txChan:      make(chan *core.Transaction),
 		quitCh:      make(chan struct{}, 1),
 
 		PBFTNode: InitPBFT(opts.ID),
@@ -85,12 +98,16 @@ func NewServer(opts ServerOpts) (*Server, error) {
 
 func (s *Server) Start() {
 	// the channel of all transports connected to server are listened
-
+	time.Sleep(time.Second * 1)
 	// go s.syncLoop()
 free:
 	//一直检查Server中来往的rpc，如果没有判断是否要退出
 	for {
 		select {
+		case tx := <-s.txChan:
+			if err := s.processTransaction(tx); err != nil {
+				s.Logger.Log("process TX error", err)
+			}
 		case rpc := <-s.rpcCh:
 			// handle rpc message
 			// type of msg is *DecodedMessage
@@ -294,7 +311,7 @@ func (s *Server) processVoteMessage(from string, data *VoteMessage) error {
 // 告诉主节点已经执行完毕
 func (s *Server) processReplyMessage(from string, data *ReplyMessage) error {
 	// fmt.Printf("%s receive reply message from %s => block had added to chain\n", s.Transport.Addr(), from)
-	s.Logger.Log("msg", "received reply message", "from", from)
+	// s.Logger.Log("msg", "received reply message", "from", from)
 	// fmt.Println("receive reply message from ", from)
 	// TODO: 重新开始一轮共识，删除本轮的CurrentState
 	// s.PBFTNode.CurrentState = &State{}
@@ -336,7 +353,8 @@ func (s *Server) processTransaction(tx *core.Transaction) error {
 	// }
 	tx.SetFirstSceen(time.Now().Unix())
 
-	go s.BroadcastTx(tx)
+	//为效率，现在有专门的节点负责广播交易
+	// go s.BroadcastTx(tx)
 
 	s.memPool.Add(tx)
 
@@ -434,24 +452,14 @@ func (s *Server) processBlocksMessage(from string, data *BlocksMessage) error {
 
 // 获取消息bug，获取到了不属于自己的消息
 func (s *Server) initTransports() {
-	// rpc form all transports connect to server will consume
-	// for _, tr := range transports {
-	// 	go func(tr Transport) {
-	// 		//listen channel to receive rpc message
-	// 		for rpc := range tr.Consume() {
-	// 			fmt.Printf("tr is %s\n", tr.Addr())
-	// 			fmt.Printf("%s receive rpc message from %s\n", s.Transport.Addr(), rpc.From)
-	// 			//将rpc消息全部存放至Server的channel中
-	// 			s.rpcCh <- rpc
-	// 		}
-	// 	}(tr)
-	// }
 	go func() {
-		// fmt.Printf("listen channel to receive rpc message=>%+v\n", s.Transport)
 		for rpc := range s.Transport.Consume() {
-			// fmt.Printf("tr is %s\n", tr.Addr())
-			// fmt.Printf("%s receive rpc message from %s\n", s.Transport.Addr(), rpc.From)
 			s.rpcCh <- rpc
+		}
+	}()
+	go func() {
+		for tx := range s.Transport.ConsumeTx() {
+			s.txChan <- tx
 		}
 	}()
 }
@@ -509,7 +517,7 @@ func (s *Server) createNewBlock() error {
 	go func(error) {
 		err = s.StartConsensus(block)
 		// s.Logger.Log("error", err)
-		return
+		// return
 	}(err)
 	return err
 }

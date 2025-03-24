@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+
+	"github.com/anthdm/projectx/core"
 )
 
 type LocalTransport struct {
@@ -11,6 +13,7 @@ type LocalTransport struct {
 	consumeCh chan RPC
 	lock      sync.RWMutex
 	peers     map[string]*LocalTransport
+	txChan    chan *core.Transaction
 }
 
 func NewLocalTransport(addr string) *LocalTransport {
@@ -18,6 +21,7 @@ func NewLocalTransport(addr string) *LocalTransport {
 		addr:      addr,
 		consumeCh: make(chan RPC, 1024),
 		peers:     make(map[string]*LocalTransport),
+		txChan:    make(chan *core.Transaction, 1024),
 	}
 }
 
@@ -71,4 +75,15 @@ func (t *LocalTransport) Broadcast(payload []byte) error {
 
 func (t *LocalTransport) Addr() string {
 	return t.addr
+}
+
+func (t *LocalTransport) SendTransaction(transaction *core.Transaction) error {
+	for _, peer := range t.peers {
+		peer.txChan <- transaction
+	}
+	return nil
+}
+
+func (t *LocalTransport) ConsumeTx() <-chan *core.Transaction {
+	return t.txChan
 }

@@ -116,6 +116,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -153,13 +154,13 @@ func main() {
 	remoteNode0 := transports[1]
 	// remoteNodeC := transports[3]
 
-	//循环发送交易
+	// 循环发送交易
 	go func() {
 		for {
-			if err := sendTransaction(remoteNode0, localNode.Addr()); err != nil {
+			if err := sendTransactionByTxChan(remoteNode0); err != nil {
 				logrus.Error(err)
 			}
-			time.Sleep(time.Millisecond * 100)
+			time.Sleep(time.Millisecond * 1)
 		}
 	}()
 	initRemoteServers(transports[1:])
@@ -263,4 +264,20 @@ func sendTransaction(tr network.Transport, to string) error {
 	msg := network.NewMessage(network.MessageTypeTx, buf.Bytes())
 
 	return tr.SendMessage(to, msg.Bytes())
+}
+
+func sendTransactionByTxChan(txTransport network.Transport) error {
+	// 定义要生成的字节长度
+	length := 16
+
+	// 生成随机字节切片
+	randomBytes := make([]byte, length)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return err
+	}
+	privKey := crypto.GeneratePrivateKey()
+	tx := core.NewTransaction(randomBytes)
+	tx.Sign(privKey)
+	return txTransport.SendTransaction(tx)
 }
